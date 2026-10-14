@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background: radial-gradient(ellipse at top, #0a1424 0%, #05080f 55%);
+  min-height: 100vh;
+}
+
+/* Scanline overlay for cyber command aesthetic */
+.scanlines::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.015) 0px,
+    rgba(255, 255, 255, 0.015) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  z-index: 50;
+}
+
+.panel {
+  @apply bg-panel border border-edge rounded-lg shadow-glow;
+}
+
+.badge {
+  @apply px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #0a101c; }
+::-webkit-scrollbar-thumb { background: #1e3a5f; border-radius: 3px; }
+
+/* React Flow dark theme overrides */
+.react-flow__edge-path { filter: drop-shadow(0 0 3px rgba(34, 211, 238, 0.5)); }
+.react-flow__controls button { background: #0a101c !important; border: 1px solid #16233b !important; color: #22d3ee !important; }
+.react-flow__minimap { background: #0a101c !important; }
