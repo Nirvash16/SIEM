@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.routers import approvals, incidents, intelligence, network
+from app.schemas.security import utcnow
 from app.services.event_bus import bus, repo
 from app.services.seed_data import seed_baselines, seed_demo_incidents, seed_topology
 from app.services.training_pipeline import scrape_all_feeds
@@ -36,6 +37,25 @@ async def _baseline_updater() -> None:
                                          "anomaly_score": score})
 
 
+async def _rule_expiry_sweeper() -> None:
+    """Auto-expire temporary mitigations whose TTL elapsed.
+
+    Guarantees Tier-1 autonomous drops and 1h scrub/rate-limit rules never
+    silently persist past their approved window (least-privilege hygiene).
+    """
+    from app.services.mitigation_executor import rollback_mitigation
+    while True:
+        await asyncio.sleep(15)
+        now = utcnow()
+        for change in list(repo.policy_changes.values()):
+            if (not change.rolled_back and change.expires_at is not None
+                    and change.expires_at <= now):
+                try:
+                    await rollback_mitigation(change.id, actor="Rule_Expiry_Sweeper")
+                except (KeyError, RuntimeError):
+                    pass
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Boot: seed topology/baselines/incidents and run first intel scrape.
@@ -47,8 +67,10 @@ async def lifespan(app: FastAPI):
     except (asyncio.TimeoutError, Exception):
         pass  # offline demo mode keeps curated corpus
     task = asyncio.create_task(_baseline_updater())
+    sweeper = asyncio.create_task(_rule_expiry_sweeper())
     yield
     task.cancel()
+    sweeper.cancel()
 
 
 app = FastAPI(title=settings.app_name, version="1.0.0", lifespan=lifespan)
